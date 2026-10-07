@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Totem Shifter: As Crônicas das Bestas Ancestrais</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Container Principal do Jogo -->
+  <div id="game-container">
+    <!-- Canvas de Renderização 2D -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Camada de Interface Superior (HUD) -->
+    <div id="hud">
+      <!-- Status do Jogador -->
+      <div class="hud-top-left">
+        <div class="player-profile">
+          <div id="player-avatar" class="avatar-frame"></div>
+          <div class="bars-container">
+            <div class="bar-wrapper hp-wrapper">
+              <div class="bar-fill" id="hp-bar" style="width: 100%;"></div>
+              <span class="bar-text" id="hp-text">100 / 100</span>
+            </div>
+            <div class="bar-wrapper stamina-wrapper">
+              <div class="bar-fill" id="stamina-bar" style="width: 100%;"></div>
+              <span class="bar-text" id="stamina-text">100 / 100</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="relic-counter">
+          <span class="relic-icon">💎</span>
+          <span id="relic-count">0</span>
+          <span class="biome-name" id="current-biome-text">Bosque Sagrado</span>
+        </div>
+      </div>
+
+      <!-- Barra de Transformações Rápidas e Ações -->
+      <div class="hud-top-center">
+        <div id="forms-bar" class="forms-bar">
+          <!-- Formas serão renderizadas dinamicamente via JS -->
+        </div>
+        <button id="hud-defend-btn" class="hud-defend-btn" title="Segure para Bloquear Dano [K / V / Shift]">
+          <span class="hud-defend-icon">🛡️</span>
+          <span class="hud-defend-label">DEFESA [K]</span>
+        </button>
+      </div>
+
+      <!-- Mini-mapa -->
+      <div class="hud-top-right">
+        <div id="minimap-container" title="Clique para expandir o mapa">
+          <canvas id="minimap-canvas" width="120" height="90"></canvas>
+          <div class="minimap-label">MAPA [M]</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Vida dos Chefes -->
+    <div id="boss-hud" class="boss-hud hidden">
+      <div class="boss-name" id="boss-name">NOME DO CHEFE</div>
+      <div class="boss-bar-wrapper">
+        <div class="boss-bar-fill" id="boss-hp-bar" style="width: 100%;"></div>
+      </div>
+      <div class="boss-subtext" id="boss-phase-text">Fase 1</div>
+    </div>
+
+    <!-- Notificações em Destaque (Desbloqueio de Totens / Capítulos) -->
+    <div id="toast-banner" class="toast-banner hidden">
+      <div class="toast-title" id="toast-title">NOVA FORMA DESBLOQUEADA!</div>
+      <div class="toast-desc" id="toast-desc">Você libertou o Espírito do Gorila.</div>
+    </div>
+
+    <!-- Caixa de Diálogo da História -->
+    <div id="dialogue-box" class="dialogue-box hidden">
+      <div class="dialogue-portrait" id="dialogue-portrait"></div>
+      <div class="dialogue-content">
+        <div class="dialogue-speaker" id="dialogue-speaker">Espírito Ancestral</div>
+        <div class="dialogue-text" id="dialogue-text">...</div>
+        <div class="dialogue-prompt">Pressione [E], [J] ou Espaço para avançar ▼</div>
+      </div>
+    </div>
+
+    <!-- Tela do Mapa Completo (Modal) -->
+    <div id="map-modal" class="modal-overlay hidden">
+      <div class="modal-content map-modal-content">
+        <div class="modal-header">
+          <h2>MAPA DAS REGIÕES ANCESTRAIS</h2>
+          <button id="close-map-btn" class="close-btn">✕</button>
+        </div>
+        <div class="map-body">
+          <canvas id="full-map-canvas" width="700" height="460"></canvas>
+          <div class="map-legend">
+            <span><span class="legend-box current-box"></span> Você está aqui</span>
+            <span><span class="legend-box explored-box"></span> Explorado</span>
+            <span><span class="legend-box totem-box"></span> Totem Ancestral</span>
+            <span><span class="legend-box boss-box"></span> Chefe de Região</span>
+            <span><span class="legend-box chest-box"></span> Baú Secreto</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tela Dedicada de Comandos / Como Jogar -->
+    <div id="controls-modal" class="modal-overlay hidden">
+      <div class="modal-content controls-modal-content">
+        <div class="modal-header">
+          <h2>🎮 GUIA DE COMANDOS & SISTEMA DE COMBATE</h2>
+          <button id="close-controls-btn" class="close-btn" title="Fechar">✕</button>
+        </div>
+        <div class="controls-modal-body">
+          <div class="controls-section">
+            <h3 class="section-title">⚔️ Controles de Ação e Combate</h3>
+            <div class="commands-grid">
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">A</span><span class="key-badge">D</span>
+                  <span class="key-sep">ou</span>
+                  <span class="key-badge">←</span><span class="key-badge">→</span>
+                </div>
+                <div class="command-desc"><strong>Mover Kael:</strong> Deslocamento horizontal ágil e preciso.</div>
+              </div>
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">Espaço</span>
+                  <span class="key-sep">ou</span>
+                  <span class="key-badge">W</span>
+                  <span class="key-sep">ou</span>
+                  <span class="key-badge">↑</span>
+                </div>
+                <div class="command-desc"><strong>Pular / Nadar:</strong> Salto no ar ou natação vertical do Tubarão.</div>
+              </div>
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">J</span>
+                  <span class="key-sep">ou</span>
+                  <span class="key-badge">Z</span>
+                </div>
+                <div class="command-desc"><strong>Ataque Frontal:</strong> Golpe com recarga tática para o jogador e inimigos.</div>
+              </div>
+              <div class="command-card highlight-card">
+                <div class="key-badge-group">
+                  <span class="key-badge special-key">S / ↓</span>
+                  <span class="key-sep">+</span>
+                  <span class="key-badge special-key">J / Z</span>
+                  <span class="key-tag">NO AR</span>
+                </div>
+                <div class="command-desc"><strong>Ataque para Baixo (Pogo estilo Hollow Knight):</strong> Golpeie para baixo no ar. Ao acertar qualquer inimigo ou espinho, você é impulsionado para cima!</div>
+              </div>
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">K</span>
+                  <span class="key-sep">/</span>
+                  <span class="key-badge">V</span>
+                  <span class="key-sep">/</span>
+                  <span class="key-badge">Shift</span>
+                </div>
+                <div class="command-desc"><strong>Escudo Totêmico:</strong> Bloqueia até 85% do dano de ataques inimigos.</div>
+              </div>
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">L</span>
+                  <span class="key-sep">ou</span>
+                  <span class="key-badge">X</span>
+                </div>
+                <div class="command-desc"><strong>Poder Especial:</strong> Habilidade única da forma animal ativa.</div>
+              </div>
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">B</span>
+                </div>
+                <div class="command-desc"><strong>Escavar (Tamanduá):</strong> Abre túneis em terra macia e ataca com garras (com tempo de recarga de 1.2s).</div>
+              </div>
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">E</span>
+                  <span class="key-sep">ou</span>
+                  <span class="key-badge">C</span>
+                </div>
+                <div class="command-desc"><strong>Interagir:</strong> Despertar Totens Ancestrais, abrir baús e ler monólitos.</div>
+              </div>
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">1</span> a <span class="key-badge">6</span>
+                  <span class="key-sep">ou</span>
+                  <span class="key-badge">Q</span>
+                </div>
+                <div class="command-desc"><strong>Metamorfose:</strong> Troque instantaneamente entre as formas totêmicas.</div>
+              </div>
+              <div class="command-card">
+                <div class="key-badge-group">
+                  <span class="key-badge">M</span>
+                </div>
+                <div class="command-desc"><strong>Mapa Ancestral:</strong> Abre o mapa detalhado com todas as regiões e salas.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="controls-section">
+            <h3 class="section-title">🐾 Bestas Totêmicas e Habilidades</h3>
+            <div class="beasts-grid">
+              <div class="beast-card">
+                <div class="beast-header"><span class="beast-icon">👤</span><strong>Humano (Kael)</strong></div>
+                <p>Equilibrado, golpe veloz, maneja espada ancestral e interage com o cenário.</p>
+              </div>
+              <div class="beast-card">
+                <div class="beast-header"><span class="beast-icon">🐭</span><strong>Espírito do Rato</strong></div>
+                <p>Minúsculo e ágil. Passa por fendas e túneis de 1 bloco para alcançar segredos.</p>
+              </div>
+              <div class="beast-card">
+                <div class="beast-header"><span class="beast-icon">🦍</span><strong>Espírito do Gorila</strong></div>
+                <p>Força titânica. Destrói paredes de rocha rachada, empurra blocos e desfere impacto sísmico [L].</p>
+              </div>
+              <div class="beast-card">
+                <div class="beast-header"><span class="beast-icon">🐆</span><strong>Espírito do Guepardo</strong></div>
+                <p>Velocidade extrema. Atravessa pisos que desmoronam e desfere bote rápido [L].</p>
+              </div>
+              <div class="beast-card">
+                <div class="beast-header"><span class="beast-icon">🦈</span><strong>Espírito do Tubarão</strong></div>
+                <p>Natação 360° total. Desbloqueado antes da boss fight aquática para superar o Leviatã Scylla.</p>
+              </div>
+              <div class="beast-card">
+                <div class="beast-header"><span class="beast-icon">🦔</span><strong>Espírito do Tamanduá</strong></div>
+                <p>Cava túneis em terra macia [B / L] e ataca com garras (com cooldown tático).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="close-controls-action-btn" class="btn primary-btn pulse">ENTENDIDO, VOLTAR</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Menu de Pausa / Instruções -->
+    <div id="pause-modal" class="modal-overlay hidden">
+      <div class="modal-content pause-modal-content">
+        <h2>JOGO PAUSADO</h2>
+        <div class="controls-guide">
+          <h3>🎮 Guia Rápido de Controles:</h3>
+          <div class="guide-grid">
+            <div><strong>Mover:</strong> [A] / [D] ou [←] / [→]</div>
+            <div><strong>Pular:</strong> [Espaço], [W] ou [↑]</div>
+            <div><strong>Ataque Normal:</strong> [J] ou [Z] (com cooldown)</div>
+            <div><strong>Ataque para Baixo (Pogo):</strong> No ar, [S] + [J] (impulsão para cima)</div>
+            <div><strong>Defender (Escudo):</strong> [K], [V] ou [Shift]</div>
+            <div><strong>Habilidade Especial:</strong> [L] ou [X]</div>
+            <div><strong>Cavar (Tamanduá):</strong> [B] (recarga 1.2s)</div>
+            <div><strong>Interagir / Falar:</strong> [E] ou [C]</div>
+            <div><strong>Trocar Forma:</strong> [1] a [6] ou [Q]</div>
+            <div><strong>Mapa Completo:</strong> [M]</div>
+            <div><strong>Pausar:</strong> [P] ou [ESC]</div>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button id="resume-btn" class="btn primary-btn">Continuar Jornada</button>
+          <button id="pause-guide-btn" class="btn secondary-btn">Guia Completo</button>
+          <button id="toggle-sound-btn" class="btn secondary-btn">Som: LIGADO</button>
+          <button id="reset-game-btn" class="btn danger-btn">Reiniciar do Início</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tela Inicial / Iniciar Jogo -->
+    <div id="start-screen" class="start-screen">
+      <div class="title-container">
+        <h1 class="game-title">TOTEM SHIFTER</h1>
+        <h2 class="game-subtitle">As Crônicas das Bestas Ancestrais</h2>
+      </div>
+      <p class="intro-lore">
+        A Corrupção do Vazio petrificou os grandes Espíritos Animais.<br>
+        Desperte suas formas totêmicas, explore as profundezas do mundo e restaure o equilíbrio natural.
+      </p>
+      <div class="start-actions">
+        <button id="start-btn" class="btn start-btn pulse">INICIAR AVENTURA</button>
+        <button id="guide-btn" class="btn secondary-btn">COMO JOGAR</button>
+      </div>
+    </div>
+
+    <!-- Controles Virtuais Touch (Mobile / Tablet) -->
+    <div id="touch-controls" class="touch-controls hidden">
+      <div class="dpad-container">
+        <button class="touch-btn dpad-btn" id="touch-left">◀</button>
+        <button class="touch-btn dpad-btn" id="touch-down">▼</button>
+        <button class="touch-btn dpad-btn" id="touch-right">▶</button>
+      </div>
+      <div class="actions-container">
+        <button class="touch-btn action-btn form-btn" id="touch-form" title="Trocar Forma">🐾</button>
+        <button class="touch-btn action-btn attack-btn" id="touch-atk" title="Atacar [J]">⚔️</button>
+        <button class="touch-btn action-btn def-btn" id="touch-def" title="Defender [K]">🛡️</button>
+        <button class="touch-btn action-btn dig-btn" id="touch-dig" title="Cavar [B]">⛏️</button>
+        <button class="touch-btn action-btn special-btn" id="touch-spc" title="Especial [L]">⚡</button>
+        <button class="touch-btn action-btn jump-btn" id="touch-jmp" title="Pular [Espaço]">▲</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts do Jogo Modularizados em Ordem de Dependência -->
+  <script src="audio.js"></script>
+  <script src="sprites.js"></script>
+  <script src="world.js"></script>
+  <script src="entities.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
